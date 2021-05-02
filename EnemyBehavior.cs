@@ -21,6 +21,7 @@ public partial class EnemyBehavior : MonoBehaviour {
     public Sprite Egg;
     public float t;
     private TimedLerp tlerp;
+    public GameObject Hero;
     enum eState
     {
     	Patrol,
@@ -32,16 +33,28 @@ public partial class EnemyBehavior : MonoBehaviour {
     	Stunned,
     	Egg
     }
+    public bool isChasing;
     eState state = eState.Patrol;
 	// Use this for initialization
 	void Start () {
+		Hero = GameObject.Find("Hero");
         mWayPointIndex = sWayPoints.GetInitWayIndex();
         sr = gameObject.GetComponent<SpriteRenderer>();
         t = 0f;
+        isChasing = false;
 	}
 	
 	// Update is called once per frame
 	void Update () {
+		if (state == eState.Chase)
+		{
+			isChasing = true;
+		}
+		else
+		{
+			isChasing = false;
+		}
+
 		if (state == eState.Patrol) {
 	       sWayPoints.CheckNextWayPoint(transform.position, ref mWayPointIndex);
 	       PointAtPosition(sWayPoints.WayPoint(mWayPointIndex), kTurnRate);
@@ -68,7 +81,18 @@ public partial class EnemyBehavior : MonoBehaviour {
     {
         if (g.name == "Hero")
         {
-            ThisEnemyIsHit();
+            if (state == eState.Chase)
+            {
+            	Hero.GetComponent<HeroBehavior>().TouchedEnemy();
+            	ThisEnemyIsHit();
+            }
+            else
+            {
+            	t = 0f;
+            	//Color c = GetComponent<Renderer>().material.color;
+            	GetComponent<Renderer>().material.color = new Color(1,0,0,1);
+            	state = eState.CCW;
+        	}
 
         } else if (g.name == "Egg(Clone)")
         {
@@ -119,7 +143,7 @@ public partial class EnemyBehavior : MonoBehaviour {
     			float z = transform.position.z;
     			transform.position = new Vector3(s.x, s.y, z);
     		}
-    		transform.RotateAround(transform.position, transform.forward, -90f*Time.smoothDeltaTime);
+    		transform.RotateAround(transform.position, transform.forward, 90f*Time.smoothDeltaTime);
 
     	}
     	if (state == eState.Egg)
@@ -131,6 +155,69 @@ public partial class EnemyBehavior : MonoBehaviour {
     			transform.position = new Vector3(s.x, s.y, z);
     		}
     		//transform.RotateAround(transform.position, transform.forward, -90f*Time.smoothDeltaTime);
+    	}
+    	if (state == eState.CCW)
+    	{
+
+    		t += Time.smoothDeltaTime;
+    		transform.RotateAround(transform.position, transform.forward, 90f*Time.smoothDeltaTime);
+    		if (t >= 1f)
+    		{
+    			t = 0f;
+    			state = eState.CW;
+    		}
+    	}
+    	if (state == eState.CW)
+    	{
+    		t += Time.smoothDeltaTime;
+    		transform.RotateAround(transform.position, transform.forward, -90f*Time.smoothDeltaTime);
+    		if (t >= 1f)
+    		{
+    			t = 0f;
+    			state = eState.Chase;
+    		}
+    	}
+    	if (state==eState.Chase)
+    	{
+    		if ((transform.position - Hero.transform.position).magnitude <= 40f)
+    		{
+    			PointAtPosition((Hero.transform.position), kTurnRate);
+	    		transform.position += (kSpeed * Time.smoothDeltaTime) * transform.up;
+	    	}
+	    	else
+	    	{
+	    		t = 0f;
+	    		state=eState.Enlarge;
+	    	}
+    	}
+    	if (state == eState.Enlarge)
+    	{
+    		t += Time.smoothDeltaTime;
+    		if (t <= 1f) {
+    			var startingScale = transform.localScale;
+    			var endingScale = new Vector3(10f,10f,2f);
+    			transform.localScale = Vector3.Lerp(startingScale, endingScale, t/60f);
+    		}
+    		else
+    		{
+    			t = 0f;
+    			state = eState.Shrink;
+    		}
+    	}
+    	if (state == eState.Shrink)
+    	{
+    		t += Time.smoothDeltaTime;
+    		if (t <= 1f) {
+    			var startingScale = transform.localScale;
+    			var endingScale = new Vector3(5f,5f,2f);
+    			transform.localScale = Vector3.Lerp(startingScale, endingScale, t/60f);
+    		}
+    		else
+    		{
+    			t = 0f;
+    			GetComponent<Renderer>().material.color = new Color(1,1,1,1);
+    			state = eState.Patrol;
+    		}
     	}
     }
     #endregion
